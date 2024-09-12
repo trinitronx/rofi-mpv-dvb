@@ -1,0 +1,98 @@
+#!/bin/bash -x
+set -e
+set -o pipefail
+PS4='+ $(date "+%s.%N") (${BASH_SOURCE}:${LINENO}): ${FUNCNAME[0]:+${FUNCNAME[0]}(): }'
+
+SELF_CMD=$(basename "$0")
+
+channels_conf=${XDG_CONFIG_HOME:-${HOME}/.config}/mpv/channels.conf.atsc
+
+# Show the list of options
+# @discussion This function prints the channel names from channels.conf
+#   The first field in this colon-separated file is expected to be the name
+show-channel-options() {
+  cut -d: -f1 < ${channels_conf}
+}
+
+# Check if an entry has been selected
+# @discussion This function returns success (0) if selected entry is not null, else error (1)
+# @return 0 (success), 1 (error)
+is-entry-selected() {
+  if [ -n "$*" ]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+# Open DVB channel in MPV
+# @discussion This function Opens the selected dvb:// url with mpv
+#   The first field in this colon-separated file is expected to be the name
+do-mpv() {
+  mpv --terminal=no --force-window=immediate "$dvb_url" > /dev/null 2>&1 &
+}
+
+# This function works like `ifne` from `moreutils`
+# It will pipe STDIN to the command passed as arguments if there is any input, otherwise it will do nothing
+# @param command Command to run if there is any input
+# @return 0 input not null (success), 1 input was null (failure)
+ifne() {
+  head=$(dd bs=1 count=1 2>/dev/null; echo -n a)
+  head=${head%a}
+  if [ "x$head" != x"" ]; then
+    { printf '%s' "$head"; cat - ; } | "$@"
+    return 0
+  fi
+  return 1
+}
+
+# Loop to show the channel list and handle user input with wofi
+# @discussion This function will loop until the user selects a null entry, this
+# script produces no further output, or presses
+# ESC
+# @return 0 (success)
+do-wofi-loop() {
+  local choice
+  choice=$(show-channel-options | wofi --dmenu --width 1000 --height 1000 --lines 15 --prompt='Select a channel' --matching=fuzzy --insensitive)
+  while [ -n "$choice" ];  do
+    choice=$($SELF_CMD "${choice:-}" | \
+      ifne wofi --show dmenu \
+        --matching=fuzzy \
+        --insensitive \
+        --prompt='Select a channel' \
+    ) || break
+  done
+  return 0
+}
+
+
+# Main
+
+if is-entry-selected "$1"; then
+  selected="$1"
+
+  dvb_url="dvb://$selected"
+
+  if [[ -n "$selected" && "$selected" != "wofi-mpv-dvb" ]]; then
+    if [[ -n "$dvb_url" ]]; then
+      do-mpv "$dvb_url"
+    else
+      show-channel-options "$id"
+    fi
+  else
+    case "$selected" in
+    'wofi-mpv-dvb'*)
+      do-wofi-loop
+      ;;
+    *)
+      echo "No channel selected: \"${selected}\""
+      echo "Unknown command \"${selected}\"" >&2
+      exit 1
+      ;;
+    esac
+
+    exit 0
+  fi
+else
+  show-channel-options
+fi

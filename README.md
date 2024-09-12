@@ -13,6 +13,7 @@ Custom script for Rofi to tune `mpv` to a DVB channel via `channels.conf*` file.
    - [mpv](https://github.com/mpv-player/mpv)
 2. Symlink the script to somewhere on your `$PATH`: `ln -s $(pwd)/rofi-mpv-dvb ~/bin/rofi-mpv-dvb`.
 3. Run rofi with this as a custom script: `rofi -modi mpv-dvb:rofi-mpv-dvb -show mpv-dvb`
+  - **Or**, alternatively run with `wofi` instead: `rofi-mpv-dvb wofi-mpv-dvb`
 
 ## License
 

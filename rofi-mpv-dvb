@@ -11,7 +11,7 @@ channels_conf=${XDG_CONFIG_HOME:-${HOME}/.config}/mpv/channels.conf.atsc
 # @discussion This function prints the channel names from channels.conf
 #   The first field in this colon-separated file is expected to be the name
 show-channel-options() {
-  cut -d: -f1 < ${channels_conf}
+  grep -Ev '^#|^$' ${channels_conf} | cut -d: -f1
 }
 
 # Check if an entry has been selected
